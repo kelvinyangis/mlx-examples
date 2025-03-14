@@ -1052,6 +1052,71 @@ def mixed_quant_predicate_builder(
     return mixed_quant_predicate
 
 
+
+def unsloth_quant_predicate_builder(
+    low_bits: int = 2, high_bits: int = 4, group_size: int = 64
+) -> Callable[[str, nn.Module, dict], Union[bool, dict]]:
+    def unsloth_quant_predicate(
+        path: str,
+        module: nn.Module,
+        config: dict,
+    ) -> Union[bool, dict]:
+        if not hasattr(module, "to_quantized"):
+            print(path, False)
+            return False
+
+        index = int(path.split(".")[2]) if len(path.split(".")) > 2 else 0
+        num_layers = config["num_hidden_layers"]
+
+        if '.mlp.down_proj' in path:
+            # Dense layer
+            bits = 8
+        elif '.mlp.shared_experts.down_proj' in path:
+            # Shared expert
+            bits = 8
+        elif '.down_proj' in path:
+            # Routed expert
+            if index < 6:
+                bits = high_bits
+            else:
+                bits = low_bits
+        elif '.self_attn.o_proj' in path:
+            bits = 4
+        elif '.mlp.gate_proj' in path:
+            # Dense layer
+            bits = 4
+        elif '.mlp.shared_experts.gate_proj' in path:
+            # Shared expert
+            bits = 4
+        elif '.mlp.up_proj' in path:
+            # Dense layer
+            bits = 4
+        elif '.mlp.shared_experts.up_proj' in path:
+            # Shared expert
+            bits = 4
+        elif '.self_attn.kv_a_proj_with_mqa' in path:
+            bits = 8
+        elif '.self_attn.kv_b_proj' in path:
+            bits = 8
+        elif '.self_attn.q_a_proj' in path:
+            bits = 4
+        elif '.self_attn.q_b_proj' in path:
+            bits = 4
+        elif 'embed_tokens' in path:
+            bits = 4
+        elif 'lm_head' in path:
+            bits = 8
+        else:
+            # Routed expert gate_proj/up_proj
+            bits = low_bits
+
+        print(path, bits)
+        return {"group_size": group_size, "bits": bits}
+
+    return unsloth_quant_predicate
+
+
+unsloth = unsloth_quant_predicate_builder()
 mixed_3_6 = mixed_quant_predicate_builder(low_bits=3)
 mixed_2_6 = mixed_quant_predicate_builder(low_bits=2)
 

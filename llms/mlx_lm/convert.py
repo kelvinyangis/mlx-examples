@@ -8,6 +8,7 @@ from .utils import convert
 QUANT_RECIPES = [
     "mixed_2_6",
     "mixed_3_6",
+    "unsloth"
 ]
 
 
